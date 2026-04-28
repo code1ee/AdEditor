@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { useEditorStore } from './editor.store';
+import { WORK_STORAGE_KEY } from '@/utils/storage';
 
 describe('editor store', () => {
   beforeEach(() => {
@@ -60,5 +61,15 @@ describe('editor store', () => {
 
     expect(nextStore.importWork('{"pages":[]}')).toBe(false);
     expect(nextStore.work.id).toBe(before);
+  });
+
+  it('keeps recoverable load errors visible after resetting corrupt saved work', () => {
+    localStorage.setItem(WORK_STORAGE_KEY, '{bad');
+
+    const store = useEditorStore();
+    store.loadFromLocalStorage();
+
+    expect(store.currentPage.elements).toHaveLength(0);
+    expect(store.errorMessage).toBe('Failed to load saved work.');
   });
 });

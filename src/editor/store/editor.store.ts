@@ -136,9 +136,10 @@ export const useEditorStore = defineStore('editor', () => {
     try {
       const storedWork = loadWorkFromStorage();
       if (storedWork) setWork(storedWork);
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to load saved work.');
+    } catch {
+      const message = 'Failed to load saved work.';
       createBlankWork();
+      setError(message);
     }
   }
 

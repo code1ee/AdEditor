@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ElMessage } from 'element-plus';
+import { ElMessage } from 'element-plus/es/components/message/index';
 import { useRouter } from 'vue-router';
 import { useEditorStore } from '@/editor/store/editor.store';
 import { useI18n, type Locale } from '@/i18n';
