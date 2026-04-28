@@ -30,10 +30,15 @@ export function validateWork(value: unknown, supportedTypes = ['text', 'image', 
   if (!Array.isArray(work.pages) || work.pages.length === 0) errors.push('Work must contain at least one page.');
 
   if (Array.isArray(work.pages)) {
+    const pageIds = new Set<string>();
     for (const page of work.pages) {
       validatePage(page, supportedTypes, errors);
+      if (typeof page.id === 'string') {
+        if (pageIds.has(page.id)) errors.push(`Duplicate page id: ${page.id}.`);
+        pageIds.add(page.id);
+      }
     }
-    if (work.currentPageId && !work.pages.some((page) => page.id === work.currentPageId)) {
+    if (!work.currentPageId || !work.pages.some((page) => page.id === work.currentPageId)) {
       errors.push('currentPageId must match an existing page.');
     }
   }
@@ -84,6 +89,8 @@ function validateElement(
     errors.push(`Unsupported element type: ${String(element.type)}.`);
   }
   if (!isRecord(element.props)) errors.push('Element props must be an object.');
+  if (typeof element.locked !== 'boolean') errors.push(`Element ${element.id || '(unknown)'} locked must be boolean.`);
+  if (typeof element.hidden !== 'boolean') errors.push(`Element ${element.id || '(unknown)'} hidden must be boolean.`);
   if (!isRecord(element.style)) {
     errors.push('Element style is required.');
     return;

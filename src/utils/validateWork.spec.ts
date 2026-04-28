@@ -34,4 +34,26 @@ describe('validateWork', () => {
     expect(result.valid).toBe(false);
     expect(result.errors.join(' ')).toContain('geometry');
   });
+
+  it('rejects duplicate page ids, invalid current page, and invalid lock flags', () => {
+    const work = createBlankWork();
+    work.currentPageId = 'missing';
+    work.pages.push({ ...work.pages[0], title: 'Duplicate page' });
+    work.pages[0].elements.push({
+      id: 'el',
+      type: 'text',
+      name: 'Text',
+      locked: 'no' as unknown as boolean,
+      hidden: false,
+      props: { text: 'Hello' },
+      style: { x: 0, y: 0, width: 20, height: 20, zIndex: 1, opacity: 1 }
+    });
+
+    const result = validateWork(work);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.join(' ')).toContain('Duplicate page id');
+    expect(result.errors.join(' ')).toContain('currentPageId');
+    expect(result.errors.join(' ')).toContain('locked must be boolean');
+  });
 });

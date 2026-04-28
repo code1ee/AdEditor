@@ -31,6 +31,10 @@ function preview() {
   router.push('/preview');
 }
 
+function run(result: { ok: boolean; message?: string }) {
+  if (!result.ok && result.message) ElMessage.warning(formatErrorMessage(result.message));
+}
+
 function importJson(file: File) {
   const reader = new FileReader();
   reader.onload = () => {
@@ -51,14 +55,33 @@ function changeLocale(value: string) {
   <header class="flex h-14 items-center gap-2 border-b border-slate-200 bg-white px-4">
     <strong class="mr-4 text-sm">{{ t('app.name') }}</strong>
     <el-button size="small" type="primary" @click="save">{{ t('toolbar.save') }}</el-button>
+    <el-button size="small" :disabled="!store.canUndo" @click="run(store.undo())">{{ t('toolbar.undo') }}</el-button>
+    <el-button size="small" :disabled="!store.canRedo" @click="run(store.redo())">{{ t('toolbar.redo') }}</el-button>
     <el-upload :show-file-list="false" accept="application/json,.json" :before-upload="importJson">
       <el-button size="small">{{ t('toolbar.importJson') }}</el-button>
     </el-upload>
     <el-button size="small" @click="exportJson">{{ t('toolbar.exportJson') }}</el-button>
     <el-button size="small" @click="preview">{{ t('toolbar.preview') }}</el-button>
-    <el-button size="small" type="danger" :disabled="!store.selectedElementId" @click="store.deleteSelectedElement">
+    <el-button size="small" :disabled="!store.canCopy" @click="run(store.copySelectedElement())">{{ t('toolbar.copy') }}</el-button>
+    <el-button size="small" :disabled="!store.canPaste" @click="run(store.pasteElement())">{{ t('toolbar.paste') }}</el-button>
+    <el-button size="small" type="danger" :disabled="store.selectedElementIds.length === 0" @click="run(store.deleteSelectedElement())">
       {{ t('toolbar.delete') }}
     </el-button>
+    <el-dropdown>
+      <el-button size="small">{{ t('toolbar.align') }}</el-button>
+      <template #dropdown>
+        <el-dropdown-menu>
+          <el-dropdown-item @click="run(store.alignSelected('left'))">{{ t('align.left') }}</el-dropdown-item>
+          <el-dropdown-item @click="run(store.alignSelected('center'))">{{ t('align.center') }}</el-dropdown-item>
+          <el-dropdown-item @click="run(store.alignSelected('right'))">{{ t('align.right') }}</el-dropdown-item>
+          <el-dropdown-item @click="run(store.alignSelected('top'))">{{ t('align.top') }}</el-dropdown-item>
+          <el-dropdown-item @click="run(store.alignSelected('middle'))">{{ t('align.middle') }}</el-dropdown-item>
+          <el-dropdown-item @click="run(store.alignSelected('bottom'))">{{ t('align.bottom') }}</el-dropdown-item>
+          <el-dropdown-item @click="run(store.distributeSelected('horizontal'))">{{ t('align.distributeH') }}</el-dropdown-item>
+          <el-dropdown-item @click="run(store.distributeSelected('vertical'))">{{ t('align.distributeV') }}</el-dropdown-item>
+        </el-dropdown-menu>
+      </template>
+    </el-dropdown>
     <el-select
       :model-value="locale"
       :aria-label="t('toolbar.language')"

@@ -3,9 +3,12 @@ import { onBeforeUnmount, onMounted } from 'vue';
 import type { ElementSchema } from '@/models/element';
 import type { PageSchema } from '@/models/page';
 import { useEditorStore } from '@/editor/store/editor.store';
+import { snapRectToGuides } from '@/utils/geometry';
+import { useGuidelines } from './useGuidelines';
 
 export function useDrag(target: Ref<HTMLElement | null>, element: Ref<ElementSchema>, page: Ref<PageSchema>) {
   const store = useEditorStore();
+  const guides = useGuidelines();
   let stopDrag: (() => void) | null = null;
 
   onMounted(() => {
@@ -20,6 +23,7 @@ export function useDrag(target: Ref<HTMLElement | null>, element: Ref<ElementSch
 
   function startDrag(event: PointerEvent): void {
     if (event.button !== 0) return;
+    if (element.value.locked) return;
     if ((event.target as Element | null)?.closest('[data-resize-handle]')) return;
     if ((event.target as Element | null)?.closest('button,input,textarea,select,a')) return;
 
@@ -41,7 +45,13 @@ export function useDrag(target: Ref<HTMLElement | null>, element: Ref<ElementSch
     const onMove = (moveEvent: PointerEvent) => {
       const dx = (moveEvent.clientX - startClientX) / store.zoom;
       const dy = (moveEvent.clientY - startClientY) / store.zoom;
-      store.moveElement(element.value.id, startX + dx, startY + dy);
+      const snapped = snapRectToGuides(
+        { ...element.value.style, x: startX + dx, y: startY + dy },
+        page.value,
+        element.value.id
+      );
+      guides.setGuides(snapped.guides);
+      store.moveElement(element.value.id, snapped.rect.x, snapped.rect.y);
     };
 
     const onVisibilityChange = () => {
@@ -64,6 +74,7 @@ export function useDrag(target: Ref<HTMLElement | null>, element: Ref<ElementSch
         // Releasing an already-ended pointer can throw in some browsers.
       }
       stopDrag = null;
+      guides.clearGuides();
     };
 
     stopDrag = onEnd;

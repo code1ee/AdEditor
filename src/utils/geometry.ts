@@ -13,7 +13,20 @@ export interface PageBounds {
   height: number;
 }
 
+export interface AlignmentGuide {
+  axis: 'x' | 'y';
+  position: number;
+  source: 'page-edge' | 'page-center' | 'element-edge' | 'element-center';
+  targetElementId?: string | null;
+}
+
+export interface SnapResult {
+  rect: Rect;
+  guides: AlignmentGuide[];
+}
+
 export const MIN_ELEMENT_SIZE = 1;
+export const SNAP_TOLERANCE = 5;
 
 export function isPositiveFinite(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
@@ -99,4 +112,97 @@ export function resizePageWithClampedElements(page: PageSchema, width: number, h
     ...nextBounds,
     elements: clampElementsToPage(page.elements, nextBounds)
   };
+}
+
+export function centerX(rect: Rect): number {
+  return rect.x + rect.width / 2;
+}
+
+export function centerY(rect: Rect): number {
+  return rect.y + rect.height / 2;
+}
+
+export function getGuideCandidates(page: PageSchema, movingElementId?: string): AlignmentGuide[] {
+  const pageGuides: AlignmentGuide[] = [
+    { axis: 'x', position: 0, source: 'page-edge' },
+    { axis: 'x', position: page.width / 2, source: 'page-center' },
+    { axis: 'x', position: page.width, source: 'page-edge' },
+    { axis: 'y', position: 0, source: 'page-edge' },
+    { axis: 'y', position: page.height / 2, source: 'page-center' },
+    { axis: 'y', position: page.height, source: 'page-edge' }
+  ];
+
+  const elementGuides = page.elements
+    .filter((element) => !element.hidden && element.id !== movingElementId)
+    .flatMap((element): AlignmentGuide[] => {
+      const rect = styleToRect(element.style);
+      return [
+        { axis: 'x', position: rect.x, source: 'element-edge', targetElementId: element.id },
+        { axis: 'x', position: centerX(rect), source: 'element-center', targetElementId: element.id },
+        { axis: 'x', position: rect.x + rect.width, source: 'element-edge', targetElementId: element.id },
+        { axis: 'y', position: rect.y, source: 'element-edge', targetElementId: element.id },
+        { axis: 'y', position: centerY(rect), source: 'element-center', targetElementId: element.id },
+        { axis: 'y', position: rect.y + rect.height, source: 'element-edge', targetElementId: element.id }
+      ];
+    });
+
+  return [...pageGuides, ...elementGuides];
+}
+
+export function snapRectToGuides(
+  rect: Rect,
+  page: PageSchema,
+  movingElementId?: string,
+  tolerance = SNAP_TOLERANCE
+): SnapResult {
+  const candidates = getGuideCandidates(page, movingElementId);
+  let nextRect = { ...rect };
+  const guides: AlignmentGuide[] = [];
+  const xAnchors = [
+    { value: rect.x, apply: (position: number) => ({ ...nextRect, x: position }) },
+    { value: centerX(rect), apply: (position: number) => ({ ...nextRect, x: position - rect.width / 2 }) },
+    { value: rect.x + rect.width, apply: (position: number) => ({ ...nextRect, x: position - rect.width }) }
+  ];
+  const yAnchors = [
+    { value: rect.y, apply: (position: number) => ({ ...nextRect, y: position }) },
+    { value: centerY(rect), apply: (position: number) => ({ ...nextRect, y: position - rect.height / 2 }) },
+    { value: rect.y + rect.height, apply: (position: number) => ({ ...nextRect, y: position - rect.height }) }
+  ];
+
+  const xGuide = nearestGuide(xAnchors.map((anchor) => anchor.value), candidates.filter((guide) => guide.axis === 'x'), tolerance);
+  if (xGuide) {
+    const anchor = xAnchors[xGuide.anchorIndex];
+    nextRect = anchor.apply(xGuide.guide.position);
+    guides.push(xGuide.guide);
+  }
+
+  const yGuide = nearestGuide(yAnchors.map((anchor) => anchor.value), candidates.filter((guide) => guide.axis === 'y'), tolerance);
+  if (yGuide) {
+    const anchor = yAnchors[yGuide.anchorIndex];
+    nextRect = anchor.apply(yGuide.guide.position);
+    guides.push(yGuide.guide);
+  }
+
+  return {
+    rect: clampRectToPage(nextRect, page),
+    guides
+  };
+}
+
+function nearestGuide(
+  anchors: number[],
+  guides: AlignmentGuide[],
+  tolerance: number
+): { guide: AlignmentGuide; anchorIndex: number } | null {
+  let best: { guide: AlignmentGuide; anchorIndex: number; distance: number } | null = null;
+  for (let anchorIndex = 0; anchorIndex < anchors.length; anchorIndex += 1) {
+    const anchor = anchors[anchorIndex];
+    for (const guide of guides) {
+      const distance = Math.abs(anchor - guide.position);
+      if (distance <= tolerance && (!best || distance < best.distance)) {
+        best = { guide, anchorIndex, distance };
+      }
+    }
+  }
+  return best ? { guide: best.guide, anchorIndex: best.anchorIndex } : null;
 }

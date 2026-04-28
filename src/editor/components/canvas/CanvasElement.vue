@@ -19,7 +19,7 @@ const target = ref<HTMLElement | null>(null);
 const elementRef = toRef(props, 'element');
 const pageRef = toRef(props, 'page');
 const plugin = computed(() => pluginRegistry.get(props.element.type));
-const isSelected = computed(() => store.selectedElementId === props.element.id);
+const isSelected = computed(() => store.selectedElementIds.includes(props.element.id));
 const style = computed(() => toElementStyle(props.element.style));
 
 useDrag(target, elementRef, pageRef);
@@ -31,11 +31,15 @@ useResize(target, elementRef, pageRef);
     v-if="plugin && !element.hidden"
     ref="target"
     class="absolute cursor-move"
+    :class="{ 'cursor-not-allowed': element.locked }"
     :style="style"
     data-canvas-element
-    @click.stop="store.selectElement(element.id)"
+    @click.stop.shift="store.addToSelection(element.id)"
+    @click.stop.meta="store.addToSelection(element.id)"
+    @click.stop.ctrl="store.addToSelection(element.id)"
+    @click.stop.exact="store.selectElement(element.id)"
   >
     <component :is="plugin.component" class="h-full w-full" :props-data="element.props" />
-    <SelectionBox v-if="isSelected" />
+    <SelectionBox v-if="isSelected && !element.locked" />
   </div>
 </template>

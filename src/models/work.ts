@@ -6,7 +6,7 @@ export interface WorkSchema {
   title: string;
   description?: string;
   pages: PageSchema[];
-  currentPageId?: string;
+  currentPageId: string;
   createdAt?: string;
   updatedAt?: string;
 }

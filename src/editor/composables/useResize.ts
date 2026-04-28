@@ -3,9 +3,12 @@ import { onBeforeUnmount, onMounted } from 'vue';
 import type { ElementSchema } from '@/models/element';
 import type { PageSchema } from '@/models/page';
 import { useEditorStore } from '@/editor/store/editor.store';
+import { snapRectToGuides } from '@/utils/geometry';
+import { useGuidelines } from './useGuidelines';
 
 export function useResize(target: Ref<HTMLElement | null>, element: Ref<ElementSchema>, page: Ref<PageSchema>) {
   const store = useEditorStore();
+  const guides = useGuidelines();
   let stopResize: (() => void) | null = null;
 
   onMounted(() => {
@@ -21,6 +24,7 @@ export function useResize(target: Ref<HTMLElement | null>, element: Ref<ElementS
   function startResize(event: PointerEvent): void {
     const handle = (event.target as Element | null)?.closest<HTMLElement>('[data-resize-handle]');
     if (event.button !== 0 || !handle) return;
+    if (element.value.locked) return;
 
     stopResize?.();
     event.preventDefault();
@@ -58,7 +62,9 @@ export function useResize(target: Ref<HTMLElement | null>, element: Ref<ElementS
         height = start.height - dy;
       }
 
-      store.resizeElement(element.value.id, width, height, x, y);
+      const snapped = snapRectToGuides({ x, y, width, height }, page.value, element.value.id);
+      guides.setGuides(snapped.guides);
+      store.resizeElement(element.value.id, snapped.rect.width, snapped.rect.height, snapped.rect.x, snapped.rect.y);
     };
 
     const onVisibilityChange = () => {
@@ -81,6 +87,7 @@ export function useResize(target: Ref<HTMLElement | null>, element: Ref<ElementS
         // Releasing an already-ended pointer can throw in some browsers.
       }
       stopResize = null;
+      guides.clearGuides();
     };
 
     stopResize = onEnd;

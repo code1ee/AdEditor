@@ -3,9 +3,12 @@ import { computed } from 'vue';
 import { useEditorStore } from '@/editor/store/editor.store';
 import { useI18n } from '@/i18n';
 import CanvasElement from './CanvasElement.vue';
+import GuideLines from './GuideLines.vue';
+import { useGuidelines } from '@/editor/composables/useGuidelines';
 
 const store = useEditorStore();
 const { t } = useI18n();
+const { activeGuides } = useGuidelines();
 
 const pageStyle = computed(() => ({
   width: `${store.currentPage.width}px`,
@@ -41,6 +44,7 @@ function updatePageHeight(value: number | undefined) {
         @click.self="store.clearSelection"
       >
         <CanvasElement v-for="element in elements" :key="element.id" :element="element" :page="store.currentPage" />
+        <GuideLines :guides="activeGuides" />
       </div>
     </div>
 

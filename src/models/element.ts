@@ -39,7 +39,9 @@ export interface ElementSchema {
   id: string;
   type: string;
   name: string;
+  /** Locked elements stay selectable but normal editor mutations must be blocked. */
   locked: boolean;
+  /** Hidden elements remain in Work JSON but are excluded from preview output and snap targets. */
   hidden: boolean;
   props: Record<string, unknown>;
   style: ElementStyle;
